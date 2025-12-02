@@ -15,7 +15,7 @@ import threading
 import time
 
 # LED strip configuration
-LED_COUNT = 200          # Number of LED pixels
+LED_COUNT = 350          # Number of LED pixels
 LED_PIN = 18             # GPIO pin connected to the pixels
 LED_FREQ_HZ = 800000     # LED signal frequency in hertz
 LED_DMA = 10             # DMA channel to use
