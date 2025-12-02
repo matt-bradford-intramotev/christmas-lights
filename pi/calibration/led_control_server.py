@@ -215,8 +215,8 @@ def main():
                        help='HTTP server port (default: 8080)')
     parser.add_argument('--host', type=str, default='0.0.0.0',
                        help='HTTP server host (default: 0.0.0.0)')
-    parser.add_argument('--led-count', type=int, default=200,
-                       help='Number of LEDs (default: 200)')
+    parser.add_argument('--led-count', type=int, default=350,
+                       help='Number of LEDs (default: 350)')
     parser.add_argument('--led-pin', type=int, default=18,
                        help='GPIO pin (default: 18)')
 
