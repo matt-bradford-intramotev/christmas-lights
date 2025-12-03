@@ -35,7 +35,7 @@ christmas-lights/
 Located in [pi/standalone/](pi/standalone/), these are individual Python scripts that run self-contained light patterns directly on the Raspberry Pi. Each script can be executed independently to produce a specific visual effect.
 
 **Examples:**
-- `gaussian-envelope-2.py` - Moving Gaussian envelope with various color schemes
+- `gaussian-envelope.py` - Moving Gaussian envelope with various color schemes
 - `led_test.py` - Basic LED strip testing utility
 
 ### GIFT (Geometric Interactive Format for Trees)
