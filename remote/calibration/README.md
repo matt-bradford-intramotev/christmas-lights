@@ -97,7 +97,8 @@ python3 capture_session.py 192.168.1.100 \
 **Output:**
 - `session_angle_N.json` - 2D coordinates for all LEDs from this angle
 - `session_angle_N_summary.txt` - Human-readable summary
-- `images_angle_N/led_XXX.jpg` - Individual LED images (if --save-images)
+- `images_angle_N/led_XXX.jpg` - Raw captured images (if --save-images)
+- `images_angle_N/led_XXX_filtered.jpg` - Color-filtered images used for detection (if --save-images with color filtering)
 
 ## Planned Components
 
@@ -107,10 +108,58 @@ python3 capture_session.py 192.168.1.100 \
 - Displays progress and results
 - Exports position maps
 
-### triangulation.py (To Be Implemented)
-- 3D position calculation from multiple 2D views
-- Validation and outlier detection
-- Export to position map JSON format
+### triangulation.py
+
+3D position calculation from multiple 2D capture sessions.
+
+**Usage:**
+```bash
+# Basic usage
+python3 triangulation.py ./calibration_data
+
+# With custom parameters
+python3 triangulation.py ./calibration_data \
+  --output tree_2024.json \
+  --name "Main Tree 2024" \
+  --camera-distance 2.5 \
+  --fov 70 \
+  --image-width 1920 \
+  --image-height 1080
+```
+
+**Parameters:**
+- `--camera-distance`: Distance from camera to tree center in meters (default: 2.0)
+- `--fov`: Camera horizontal field of view in degrees (default: 60)
+- `--image-width/height`: Camera resolution (default: 640x480)
+
+**Output:**
+- `position_map.json` - Position map in GIFT format
+- `position_map.detailed.json` - Extended version with confidence scores
+
+### visualize_positions.py
+
+3D visualization and analysis tool for position maps.
+
+**Usage:**
+```bash
+# Interactive 3D view
+python3 visualize_positions.py position_map.json
+
+# Save to image file
+python3 visualize_positions.py position_map.json --save tree_3d.png
+
+# Generate multiple viewpoints
+python3 visualize_positions.py position_map.json --multi-view ./views/
+
+# Analysis only (no visualization)
+python3 visualize_positions.py position_map.json --no-plot
+```
+
+**Features:**
+- Interactive 3D rotation
+- Color-coded by height
+- Statistics: ranges, spacing, gaps
+- Multiple viewpoint export
 
 ### camera_calibration.py (To Be Implemented)
 - Camera intrinsic calibration (focal length, distortion)
@@ -165,10 +214,31 @@ pip3 install opencv-python numpy requests
    python3 capture_session.py <pi_ip_address> --angle 2 --preview
    ```
 
-6. **Triangulate (to be implemented):**
+6. **Triangulate 3D Positions:**
    ```bash
    # Combine all angles to get 3D positions
-   python3 triangulation.py ./calibration_data
+   python3 triangulation.py ./calibration_data --output tree_positions.json
+
+   # Outputs:
+   # - tree_positions.json (position map)
+   # - tree_positions.detailed.json (with confidence scores)
+   ```
+
+7. **Visualize Results:**
+   ```bash
+   # Interactive 3D view
+   python3 visualize_positions.py tree_positions.json
+
+   # Or save multiple views
+   python3 visualize_positions.py tree_positions.json --multi-view ./views/
+   ```
+
+8. **Deploy to GIFT System:**
+   ```bash
+   # Copy position map to Pi
+   cp tree_positions.json ../../pi/GIFT/position_maps/
+
+   # Now ready to use in .gift animations!
    ```
 
 ## Development Status
@@ -177,11 +247,12 @@ pip3 install opencv-python numpy requests
 - [x] Camera capture module
 - [x] LED detection (brightest pixel)
 - [x] Enhanced LED detection (background subtraction, blob detection)
-- [x] **CLI capture session tool (ready to test!)**
-- [ ] Calibration UI (optional - CLI tool works)
-- [ ] Triangulation module
-- [ ] Camera calibration utilities
-- [ ] Position map export
+- [x] CLI capture session tool
+- [x] **Triangulation module (ready to use!)**
+- [x] **3D visualization tool**
+- [x] Position map export
+- [ ] Calibration UI (optional - CLI tools work well)
+- [ ] Advanced camera calibration (optional - simplified method works)
 
 ## Camera Setup Tips
 
@@ -197,9 +268,10 @@ pip3 install opencv-python numpy requests
 - Minimum 50° angle separation between views
 
 ### LED Detection
-- White LEDs work best (high brightness)
-- Dark background improves detection
-- Check for ambient light interference
+- Red LEDs recommended (color filtering rejects ambient white light)
+- Green or blue LEDs also work well with color filtering
+- White LEDs work best in very dark rooms
+- When using --save-images with color filtering, both raw and filtered images are saved for debugging
 - Test a few LEDs before running full calibration
 
 ## Troubleshooting
