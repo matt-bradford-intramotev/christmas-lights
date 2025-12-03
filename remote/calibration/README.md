@@ -76,6 +76,9 @@ python3 capture_session.py 192.168.1.100
 # With live preview
 python3 capture_session.py 192.168.1.100 --preview
 
+# With manual exposure and gain (recommended for consistent results)
+python3 capture_session.py 192.168.1.100 --exposure 1250 --gain 75
+
 # Save images and use custom camera
 python3 capture_session.py 192.168.1.100 --camera 1 --save-images
 
@@ -90,6 +93,8 @@ python3 capture_session.py 192.168.1.100 \
   --output ./my_tree_calibration \
   --name "angle_1_front_view" \
   --description "Front view from 2 meters" \
+  --exposure 1250 \
+  --gain 75 \
   --save-images \
   --preview
 ```
@@ -108,6 +113,39 @@ python3 capture_session.py 192.168.1.100 \
 - Displays progress and results
 - Exports position maps
 
+### check_calibration.py
+
+Pre-check tool to analyze calibration data quality before triangulation.
+
+**Usage:**
+```bash
+# Basic check
+python3 check_calibration.py ./calibration_data
+
+# Check with stricter requirement
+python3 check_calibration.py ./calibration_data --min-detections 5
+
+# Show images for problematic LEDs
+python3 check_calibration.py ./calibration_data --show-images
+
+# Quiet mode - only show problems
+python3 check_calibration.py ./calibration_data --quiet
+```
+
+**Features:**
+- Analyzes all session files in calibration directory
+- Counts successful detections per LED across all angles
+- Identifies LEDs with insufficient views (<4 by default)
+- Shows which angles each LED was visible/occluded
+- Displays saved images for problematic LEDs (if `--save-images` was used during capture)
+- Provides recommendations for improving calibration quality
+
+**Output:**
+- Detection quality statistics
+- List of problematic LEDs with reasons
+- Visual image grid for problematic LEDs (if available)
+- Exit code 0 if all good, 1 if problems detected
+
 ### triangulation.py
 
 3D position calculation from multiple 2D capture sessions.
@@ -125,15 +163,43 @@ python3 triangulation.py ./calibration_data \
   --fov 70 \
   --image-width 1920 \
   --image-height 1080
+
+# Visualize specific LEDs during triangulation (for debugging)
+python3 triangulation.py ./calibration_data --visualize-led 0 50 100
 ```
 
 **Parameters:**
 - `--camera-distance`: Distance from camera to tree center in meters (default: 2.0)
 - `--fov`: Camera horizontal field of view in degrees (default: 60)
 - `--image-width/height`: Camera resolution (default: 640x480)
+- `--visualize-led`: Show 3D visualization for specific LED indices (space-separated)
+
+**Visualization:**
+The `--visualize-led` option displays an interactive 3D plot showing:
+- Camera positions around the tree (colored spheres)
+- Rays from each camera through the detected LED position (colored lines)
+- Estimated 3D LED position (yellow star)
+- Distance from LED to each ray (printed to console)
+
+This is useful for debugging triangulation issues or understanding the geometry of your capture setup.
+
+**Coordinate System:**
+- X-Y plane is horizontal (where cameras are positioned)
+- Z axis is vertical (tree height, "up")
+- Origin is at the center of the camera circle at ground level
+
+**Output Normalization:**
+The tool automatically normalizes the output coordinates:
+- **Height**: Z range scaled to 1.0 (normalized units)
+- **X centering**: Shifted so median X = 0
+- **Y centering**: Shifted so median Y = 0
+- **Z centering**: Shifted so vertical center is at Z = 0
+- Original scale factor stored in metadata for reference
+
+This normalization makes position maps portable and independent of the actual physical size of the tree.
 
 **Output:**
-- `position_map.json` - Position map in GIFT format
+- `position_map.json` - Position map in GIFT format (normalized coordinates)
 - `position_map.detailed.json` - Extended version with confidence scores
 
 ### visualize_positions.py
@@ -214,7 +280,16 @@ pip3 install opencv-python numpy requests
    python3 capture_session.py <pi_ip_address> --angle 2 --preview
    ```
 
-6. **Triangulate 3D Positions:**
+6. **Check Calibration Quality (recommended):**
+   ```bash
+   # Verify all LEDs have sufficient detections
+   python3 check_calibration.py ./calibration_data --show-images
+
+   # If problems found, re-capture problematic angles
+   python3 capture_session.py <pi_ip_address> --angle 0 --start-led 45 --led-count 50
+   ```
+
+7. **Triangulate 3D Positions:**
    ```bash
    # Combine all angles to get 3D positions
    python3 triangulation.py ./calibration_data --output tree_positions.json
@@ -224,7 +299,7 @@ pip3 install opencv-python numpy requests
    # - tree_positions.detailed.json (with confidence scores)
    ```
 
-7. **Visualize Results:**
+8. **Visualize Results:**
    ```bash
    # Interactive 3D view
    python3 visualize_positions.py tree_positions.json
@@ -233,7 +308,7 @@ pip3 install opencv-python numpy requests
    python3 visualize_positions.py tree_positions.json --multi-view ./views/
    ```
 
-8. **Deploy to GIFT System:**
+9. **Deploy to GIFT System:**
    ```bash
    # Copy position map to Pi
    cp tree_positions.json ../../pi/GIFT/position_maps/
@@ -248,6 +323,7 @@ pip3 install opencv-python numpy requests
 - [x] LED detection (brightest pixel)
 - [x] Enhanced LED detection (background subtraction, blob detection)
 - [x] CLI capture session tool
+- [x] **Calibration quality checker**
 - [x] **Triangulation module (ready to use!)**
 - [x] **3D visualization tool**
 - [x] Position map export
@@ -256,10 +332,51 @@ pip3 install opencv-python numpy requests
 
 ## Camera Setup Tips
 
-### Exposure Settings
-- Disable auto-exposure for consistent results
-- Use manual exposure to prevent brightness adaptation
-- Dark room helps with LED detection
+### Exposure and Gain Settings
+- **Manual exposure is highly recommended** to prevent brightness adaptation between LEDs
+- Use `--exposure` and `--gain` parameters together for full control
+- **IMPORTANT**: Many cameras lock gain to minimum when you set fixed exposure!
+  - Always use `--gain` with `--exposure` for proper brightness
+  - Exposure controls shutter speed (light duration)
+  - Gain controls sensor sensitivity (amplification)
+
+**Exposure Ranges** (vary drastically by camera):
+  - Logarithmic: `-13` to `-1` (common for some webcams)
+  - Linear time: `1` to `10000` (microseconds or milliseconds)
+  - Abstract: `0` to `255` or `0` to `10000`
+  - Your camera may only support a narrow range within these
+
+**Gain Ranges** (more consistent across cameras):
+  - Usually: `0` to `100` or `0` to `255`
+  - Higher gain = brighter but more noise
+  - Start with gain `50` and adjust
+
+**Finding Your Camera's Range:**
+1. Run with any value: `--exposure -6` (or `--exposure 100`)
+2. Check output for "Before setting" and "After setting" values
+3. If "After setting" doesn't match your request, note the actual value
+4. Try values around the actual value (e.g., if it shows 1250, try 500, 1000, 1500, 2000)
+5. Use `--save-images` on a test run to see which exposure works best
+
+**Example Discovery Process:**
+```bash
+# Step 1: Find exposure range
+python3 capture_session.py 10.0.0.144 --exposure 1250 --start-led 0 --led-count 1 --preview
+# Note the "After setting" value
+
+# Step 2: Add gain to brighten image (if too dark with fixed exposure)
+python3 capture_session.py 10.0.0.144 --exposure 1250 --gain 50 --start-led 0 --led-count 1 --preview
+
+# Step 3: Adjust gain to get good brightness
+python3 capture_session.py 10.0.0.144 --exposure 1250 --gain 25 --start-led 0 --led-count 5 --preview
+python3 capture_session.py 10.0.0.144 --exposure 1250 --gain 75 --start-led 0 --led-count 5 --preview
+python3 capture_session.py 10.0.0.144 --exposure 1250 --gain 100 --start-led 0 --led-count 5 --preview
+
+# Step 4: Use --save-images to review results
+python3 capture_session.py 10.0.0.144 --exposure 1250 --gain 75 --start-led 0 --led-count 10 --save-images
+```
+
+- Omit `--exposure` for auto-exposure (not recommended, may vary between LEDs)
 
 ### Camera Positioning
 - Ensure entire LED installation is visible
@@ -299,6 +416,14 @@ pip3 install opencv-python numpy requests
 - Bright reflections in scene
 - Adjust `ambiguity_threshold`
 - Use darker background
+
+**Inconsistent detection / exposure problems**
+- Set manual exposure with `--exposure` parameter
+- Start with `-7` and adjust based on results
+- If LEDs are too dim: increase exposure (e.g., `-6`, `-5`)
+- If background is too bright: decrease exposure (e.g., `-8`, `-9`)
+- Use `--save-images` to review actual captured frames
+- Check "Requested vs Actual" exposure in output - if different, camera may not support that range
 
 ## Documentation
 
