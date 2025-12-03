@@ -26,16 +26,20 @@ class LEDDetection:
 class CameraCapture:
     """Manages camera and LED detection."""
 
-    def __init__(self, camera_id: int = 0):
+    def __init__(self, camera_id: int = 0, exposure: float = None, gain: float = None):
         """
         Initialize camera capture.
 
         Args:
             camera_id: Camera device ID (0 for default webcam)
+            exposure: Manual exposure value (None for auto, typically -13 to -1 for manual)
+            gain: Manual gain/ISO value (None for auto, typically 0-100 or 0-255)
         """
         self.camera_id = camera_id
+        self.exposure = exposure
+        self.gain = gain
         self.cap = None
-        self.brightness_threshold = 200
+        self.brightness_threshold = 100
         self.ambiguity_threshold = 100  # Max bright pixels for clear detection
 
     def open(self) -> bool:
@@ -52,7 +56,58 @@ class CameraCapture:
 
         # Set camera properties for better LED detection
         self.cap.set(cv2.CAP_PROP_AUTOFOCUS, 0)  # Disable autofocus
-        self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0)  # Disable auto-exposure
+
+        # Set exposure mode and value
+        if self.exposure is not None:
+            print(f"Setting manual exposure to: {self.exposure}")
+
+            # Try different auto-exposure disable methods (varies by camera/backend)
+            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.25)  # Manual mode (some cameras)
+            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 1)     # Manual mode (other cameras)
+
+            # Get current exposure before setting (might show default or range info)
+            current_exp = self.cap.get(cv2.CAP_PROP_EXPOSURE)
+
+            # Set manual exposure value
+            self.cap.set(cv2.CAP_PROP_EXPOSURE, self.exposure)
+
+            # Verify settings (for debugging)
+            actual_exposure = self.cap.get(cv2.CAP_PROP_EXPOSURE)
+
+            print(f"  Before setting: {current_exp}")
+            print(f"  After setting:  {actual_exposure}")
+
+            if abs(actual_exposure - self.exposure) > 1:
+                print(f"  WARNING: Camera did not accept requested exposure value!")
+                print(f"  Camera may use different units or have different range.")
+                print(f"  Try experimenting with values near {actual_exposure}")
+                print(f"  Common ranges: 1-10000 (linear), 0-255 (abstract), -13 to -1 (log)")
+        else:
+            # Auto-exposure
+            print("Using auto-exposure (not recommended)")
+            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 0.75)  # Auto mode (some cameras)
+            self.cap.set(cv2.CAP_PROP_AUTO_EXPOSURE, 3)     # Auto mode (other cameras)
+
+        # Set gain if specified
+        if self.gain is not None:
+            print(f"Setting manual gain to: {self.gain}")
+
+            # Get current gain before setting
+            current_gain = self.cap.get(cv2.CAP_PROP_GAIN)
+
+            # Set manual gain value
+            self.cap.set(cv2.CAP_PROP_GAIN, self.gain)
+
+            # Verify settings
+            actual_gain = self.cap.get(cv2.CAP_PROP_GAIN)
+
+            print(f"  Before setting: {current_gain}")
+            print(f"  After setting:  {actual_gain}")
+
+            if abs(actual_gain - self.gain) > 1:
+                print(f"  WARNING: Camera did not accept requested gain value!")
+                print(f"  Try experimenting with values near {actual_gain}")
+                print(f"  Common ranges: 0-100 (many cameras), 0-255 (some cameras)")
 
         return True
 

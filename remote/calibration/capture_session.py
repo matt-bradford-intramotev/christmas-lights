@@ -32,10 +32,12 @@ class CaptureSession:
         save_images: bool = False,
         settle_time: float = 0.1,
         use_settling_check: bool = True,
-        led_color: tuple = (255, 0, 0)  # Default: red
+        led_color: tuple = (255, 0, 0),  # Default: red
+        exposure: float = None,  # None = auto, or manual value
+        gain: float = None  # None = auto, or manual value
     ):
         self.pi_controller = PiController(pi_ip, pi_port)
-        self.camera = CameraCapture(camera_id)
+        self.camera = CameraCapture(camera_id, exposure=exposure, gain=gain)
         self.led_count = led_count
         self.output_dir = Path(output_dir)
         self.angle_id = angle_id
@@ -367,6 +369,12 @@ Examples:
                        help='Disable dynamic settling check (faster but less accurate)')
     parser.add_argument('--led-color', type=str, default='red',
                        help='LED color: red, green, blue, white (default: red)')
+    parser.add_argument('--exposure', type=float, default=None,
+                       help='Manual camera exposure (None for auto). Range varies by camera: '
+                            'try -6, 100, or 1000. Check output to see what camera accepts.')
+    parser.add_argument('--gain', type=float, default=None,
+                       help='Manual camera gain/ISO (None for auto). Usually 0-100 or 0-255. '
+                            'Higher gain = brighter image. Use with --exposure for full control.')
 
     args = parser.parse_args()
 
@@ -395,6 +403,8 @@ Examples:
     print(f"LED Count:    {args.led_count}")
     print(f"Angle ID:     {args.angle}")
     print(f"LED Color:    {args.led_color} {led_color}")
+    print(f"Exposure:     {args.exposure if args.exposure is not None else 'Auto'}")
+    print(f"Gain:         {args.gain if args.gain is not None else 'Auto'}")
     print(f"Session Name: {args.name}")
     print(f"Output Dir:   {args.output}")
     print("=" * 60)
@@ -411,7 +421,9 @@ Examples:
         save_images=args.save_images,
         settle_time=args.settle_time,
         use_settling_check=not args.no_settling_check,
-        led_color=led_color
+        led_color=led_color,
+        exposure=args.exposure,
+        gain=args.gain
     )
 
     try:
