@@ -60,3 +60,9 @@ htmlcov/
 *.tmp
 temp/
 tmp/
+
+# Data
+remote/calibration/calibration_data
+
+# Claude
+CLAUDE.md
