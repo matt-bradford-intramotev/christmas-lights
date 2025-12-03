@@ -83,29 +83,54 @@ class CameraCapture:
     def detect_led(
         self,
         image: np.ndarray,
-        led_index: int
-    ) -> LEDDetection:
+        led_index: int,
+        led_color: tuple = None,
+        return_debug_image: bool = False
+    ):
         """
         Detect LED position in captured image.
 
         Uses brightest pixel method with occlusion checking.
+        Optionally filters by LED color to reject ambient light.
 
         Args:
             image: Input image (H, W, 3) BGR format
             led_index: Index of LED being detected
+            led_color: Optional RGB tuple for color filtering (e.g., (255, 0, 0) for red)
+            return_debug_image: If True, return tuple of (detection, processed_gray_image)
 
         Returns:
-            LEDDetection object with results
+            LEDDetection object, or tuple of (LEDDetection, gray_image) if return_debug_image=True
         """
-        # Convert to grayscale
-        gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        # Apply color filtering if LED color is specified
+        if led_color is not None:
+            # Convert RGB to BGR for OpenCV
+            b, g, r = led_color[2], led_color[1], led_color[0]
+
+            # Extract color channel based on dominant color
+            # This helps reject ambient white light
+            if r > g and r > b:  # Red LED
+                # Red channel minus average of others
+                gray = image[:, :, 2].astype(np.float32) - (image[:, :, 0].astype(np.float32) + image[:, :, 1].astype(np.float32)) / 2
+                gray = np.clip(gray, 0, 255).astype(np.uint8)
+            elif g > r and g > b:  # Green LED
+                gray = image[:, :, 1].astype(np.float32) - (image[:, :, 0].astype(np.float32) + image[:, :, 2].astype(np.float32)) / 2
+                gray = np.clip(gray, 0, 255).astype(np.uint8)
+            elif b > r and b > g:  # Blue LED
+                gray = image[:, :, 0].astype(np.float32) - (image[:, :, 1].astype(np.float32) + image[:, :, 2].astype(np.float32)) / 2
+                gray = np.clip(gray, 0, 255).astype(np.uint8)
+            else:  # White or mixed - use standard grayscale
+                gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        else:
+            # No color filtering - use standard grayscale
+            gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
 
         # Find maximum brightness
         max_val = gray.max()
 
         # Check if LED is bright enough
         if max_val < self.brightness_threshold:
-            return LEDDetection(
+            detection = LEDDetection(
                 led_index=led_index,
                 pixel_x=0,
                 pixel_y=0,
@@ -114,6 +139,7 @@ class CameraCapture:
                 confidence=0.0,
                 notes="Below brightness threshold"
             )
+            return (detection, gray) if return_debug_image else detection
 
         # Get coordinates of brightest pixel
         y, x = np.unravel_index(gray.argmax(), gray.shape)
@@ -123,7 +149,7 @@ class CameraCapture:
         bright_pixel_count = bright_mask.sum()
 
         if bright_pixel_count > self.ambiguity_threshold:
-            return LEDDetection(
+            detection = LEDDetection(
                 led_index=led_index,
                 pixel_x=int(x),
                 pixel_y=int(y),
@@ -132,12 +158,13 @@ class CameraCapture:
                 confidence=0.5,
                 notes=f"Ambiguous detection: {bright_pixel_count} bright pixels"
             )
+            return (detection, gray) if return_debug_image else detection
 
         # Calculate confidence based on how isolated the bright spot is
         confidence = 1.0 - (bright_pixel_count / self.ambiguity_threshold)
         confidence = max(0.0, min(1.0, confidence))
 
-        return LEDDetection(
+        detection = LEDDetection(
             led_index=led_index,
             pixel_x=int(x),
             pixel_y=int(y),
@@ -145,6 +172,7 @@ class CameraCapture:
             occluded=False,
             confidence=confidence
         )
+        return (detection, gray) if return_debug_image else detection
 
     def detect_led_enhanced(
         self,

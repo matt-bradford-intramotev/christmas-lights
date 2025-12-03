@@ -29,7 +29,10 @@ class CaptureSession:
         led_count: int,
         output_dir: str,
         angle_id: int = 0,
-        save_images: bool = False
+        save_images: bool = False,
+        settle_time: float = 0.1,
+        use_settling_check: bool = True,
+        led_color: tuple = (255, 0, 0)  # Default: red
     ):
         self.pi_controller = PiController(pi_ip, pi_port)
         self.camera = CameraCapture(camera_id)
@@ -37,6 +40,9 @@ class CaptureSession:
         self.output_dir = Path(output_dir)
         self.angle_id = angle_id
         self.save_images = save_images
+        self.settle_time = settle_time
+        self.use_settling_check = use_settling_check
+        self.led_color = led_color
         self.detections: List[LEDDetection] = []
 
         # Create output directory
@@ -74,6 +80,46 @@ class CaptureSession:
 
         return True
 
+    def wait_for_led_settling(self, num_frames: int = 3, timeout: float = 1.0) -> bool:
+        """
+        Wait for LED and camera to settle by checking frame stability.
+
+        Args:
+            num_frames: Number of consecutive stable frames required
+            timeout: Maximum time to wait in seconds
+
+        Returns:
+            True if settled, False if timeout
+        """
+        start_time = time.time()
+        prev_brightness = None
+        stable_count = 0
+
+        while (time.time() - start_time) < timeout:
+            frame = self.camera.capture_frame()
+            if frame is None:
+                continue
+
+            # Get max brightness in frame
+            import cv2
+            gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            current_brightness = gray.max()
+
+            # Check if brightness has stabilized
+            if prev_brightness is not None:
+                brightness_change = abs(current_brightness - prev_brightness)
+                if brightness_change < 5:  # Less than 5 brightness units change
+                    stable_count += 1
+                    if stable_count >= num_frames:
+                        return True
+                else:
+                    stable_count = 0
+
+            prev_brightness = current_brightness
+            time.sleep(0.03)  # 30ms between checks
+
+        return False  # Timeout
+
     def capture_led(self, led_index: int, preview: bool = False) -> Optional[LEDDetection]:
         """
         Capture and detect a single LED.
@@ -85,13 +131,18 @@ class CaptureSession:
         Returns:
             LEDDetection object or None if failed
         """
-        # Turn on LED
-        if not self.pi_controller.light_led(led_index):
+        # Turn on LED with specified color
+        if not self.pi_controller.light_led(led_index, color=self.led_color):
             print(f"Failed to light LED {led_index}")
             return None
 
-        # Wait for LED to stabilize
-        time.sleep(0.05)  # 50ms
+        # Wait for LED and camera to settle
+        # Fixed minimum delay for network/LED strip
+        time.sleep(self.settle_time)
+
+        # Then check for settling (optional, adds ~100-200ms)
+        if self.use_settling_check:
+            self.wait_for_led_settling(num_frames=3, timeout=0.5)
 
         # Capture frame
         frame = self.camera.capture_frame()
@@ -100,13 +151,31 @@ class CaptureSession:
             self.pi_controller.turn_off_led(led_index)
             return None
 
-        # Detect LED
-        detection = self.camera.detect_led(frame, led_index)
+        # Detect LED with color filtering
+        # Request debug image if we're saving images and using color filtering
+        use_color_filtering = self.led_color != (255, 255, 255)  # Not white
+        request_debug = self.save_images and use_color_filtering
 
-        # Save image if requested
+        result = self.camera.detect_led(frame, led_index, led_color=self.led_color,
+                                        return_debug_image=request_debug)
+
+        # Unpack result
+        if request_debug:
+            detection, filtered_gray = result
+        else:
+            detection = result
+            filtered_gray = None
+
+        # Save images if requested
         if self.save_images:
+            # Always save raw captured image
             image_path = self.images_dir / f"led_{led_index:03d}.jpg"
             cv2.imwrite(str(image_path), frame)
+
+            # If color filtering was used, also save the filtered grayscale image
+            if filtered_gray is not None:
+                filtered_path = self.images_dir / f"led_{led_index:03d}_filtered.jpg"
+                cv2.imwrite(str(filtered_path), filtered_gray)
 
         # Show preview if requested
         if preview:
@@ -292,8 +361,27 @@ Examples:
                        help='Show live preview window')
     parser.add_argument('--start-led', type=int, default=0,
                        help='Start from this LED index (for resuming)')
+    parser.add_argument('--settle-time', type=float, default=0.1,
+                       help='Initial settle time in seconds (default: 0.1)')
+    parser.add_argument('--no-settling-check', action='store_true',
+                       help='Disable dynamic settling check (faster but less accurate)')
+    parser.add_argument('--led-color', type=str, default='red',
+                       help='LED color: red, green, blue, white (default: red)')
 
     args = parser.parse_args()
+
+    # Parse LED color
+    color_map = {
+        'red': (255, 0, 0),
+        'green': (0, 255, 0),
+        'blue': (0, 0, 255),
+        'white': (255, 255, 255),
+        'r': (255, 0, 0),
+        'g': (0, 255, 0),
+        'b': (0, 0, 255),
+        'w': (255, 255, 255)
+    }
+    led_color = color_map.get(args.led_color.lower(), (255, 0, 0))
 
     # Generate session name if not provided
     if not args.name:
@@ -306,6 +394,7 @@ Examples:
     print(f"Camera:       {args.camera}")
     print(f"LED Count:    {args.led_count}")
     print(f"Angle ID:     {args.angle}")
+    print(f"LED Color:    {args.led_color} {led_color}")
     print(f"Session Name: {args.name}")
     print(f"Output Dir:   {args.output}")
     print("=" * 60)
@@ -319,7 +408,10 @@ Examples:
         led_count=args.led_count,
         output_dir=args.output,
         angle_id=args.angle,
-        save_images=args.save_images
+        save_images=args.save_images,
+        settle_time=args.settle_time,
+        use_settling_check=not args.no_settling_check,
+        led_color=led_color
     )
 
     try:
