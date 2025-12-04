@@ -16,16 +16,30 @@ This project provides tools for creating and controlling LED light patterns on W
 
 ```
 christmas-lights/
-├── pi/                      # Tools that run on the Raspberry Pi
-│   ├── standalone/          # Individual pattern scripts
+├── pi/                          # Tools that run on the Raspberry Pi
+│   ├── standalone/              # Individual pattern scripts
 │   │   ├── gaussian-envelope-2.py
 │   │   └── led_test.py
-│   └── GIFT/                # GIFT system components
-│       └── (to be implemented)
-├── remote/                  # Remote control tools
-│   └── (to be implemented)
-└── docs/                    # Documentation and specifications
-    └── (to be added)
+│   ├── GIFT/                    # GIFT playback system
+│   │   ├── gift_player.py       # Animation player for hardware
+│   │   ├── gifts/               # GIFT animation files (.gift)
+│   │   └── position_maps/       # LED position maps (JSON)
+│   └── calibration/             # Calibration server for position mapping
+│       └── led_control_server.py
+├── remote/                      # Remote development tools
+│   ├── calibration/             # Camera-based position mapping
+│   │   ├── position-maps/       # Calibrated position maps
+│   │   ├── triangulation.py     # 3D position calculation
+│   │   ├── camera_capture.py    # Image capture and LED detection
+│   │   └── pi_control.py        # HTTP client for Pi control
+│   └── gift-generation/         # GIFT animation creation
+│       ├── gift_creator.py      # Animation builder library
+│       ├── simulate_gift.py     # 3D visualization and preview
+│       └── example_rainbow_bands.py
+└── docs/                        # Documentation and specifications
+    ├── GIFT_FORMAT_SPEC.md      # GIFT file format specification
+    ├── CALIBRATION_SYSTEM.md    # Position mapping system
+    └── DEVELOPMENT_PLAN.md      # Project roadmap
 ```
 
 ## Components
@@ -40,21 +54,40 @@ Located in [pi/standalone/](pi/standalone/), these are individual Python scripts
 
 ### GIFT (Geometric Interactive Format for Trees)
 
-A file-based system for creating sophisticated 3D light animations. GIFT is designed to work with spatial mappings of LED positions.
+A frame-based animation system for creating sophisticated 3D light shows. GIFT separates animation generation (which uses 3D position data) from playback (which just displays pre-rendered frames).
+
+**How It Works:**
+1. **Calibration**: Camera-based system maps each LED's 3D position in space
+2. **Generation**: Create animations using position data (on development machine)
+3. **Simulation**: Preview animations in 3D before deployment
+4. **Playback**: Play pre-rendered animations on the Raspberry Pi
+
+**File Format:**
+- Simple CSV format: `frame_id, R_1, G_1, B_1, R_2, G_2, B_2, ...`
+- Metadata header: LED count, framerate, duration, loop setting
+- Position maps separate from animation files (used during generation only)
+- No runtime calculations needed for playback
 
 **Key Features:**
-- 3D position mapping of each LED in physical space
-- `.GIFT` file format for defining timing and position-based animations
-- Python class for parsing and executing `.GIFT` files
-- Visualization tool for creating and previewing `.GIFT` files
-
-**Status**: To be implemented
+- Camera-based 3D position calibration
+- Position-aware animation generation
+- Interactive 3D preview and simulation
+- Simple, efficient playback on Pi Zero 2 W
+- Automatic handling of unmapped/failed LEDs
 
 ### Remote Control Tools
 
-Located in [remote/](remote/), these tools run on a separate machine and allow remote control and management of the LED displays on the Raspberry Pi.
+Located in [remote/](remote/), these tools run on a separate machine to create and manage animations:
 
-**Status**: To be implemented
+**Calibration Tools:**
+- Camera-based LED position detection
+- Multi-angle triangulation for 3D mapping
+- Position map validation and visualization
+
+**Animation Tools:**
+- GIFT animation creation with position awareness
+- 3D preview and simulation
+- Example animation generators
 
 ## Getting Started
 
@@ -64,6 +97,13 @@ Located in [remote/](remote/), these tools run on a separate machine and allow r
 - Python 3.7+
 - `rpi-ws281x` library for LED control
 - NumPy for mathematical operations
+- Flask (for calibration server)
+
+**On Development Machine (for GIFT creation):**
+- Python 3.7+
+- NumPy, matplotlib (for visualization)
+- OpenCV (for calibration)
+- Requests (for Pi communication)
 
 ### Running Standalone Scripts
 
@@ -75,48 +115,77 @@ sudo python3 gaussian-envelope-2.py
 
 Note: `sudo` is required for GPIO access on the Raspberry Pi.
 
-### Using GIFT (Coming Soon)
+### Using GIFT
+
+**On Development Machine:**
 
 ```bash
-# Example usage (to be implemented)
-cd pi/GIFT
-sudo python3 gift_player.py animations/sparkle.gift
+# 1. Calibrate LED positions (one-time setup)
+cd remote/calibration
+python3 triangulation.py ./calibration_data --output position-maps/tree.json
+
+# 2. Create animation
+cd ../gift-generation
+python3 example_rainbow_bands.py ../calibration/position-maps/tree.json \
+  --output my_animation.gift --duration 10
+
+# 3. Preview animation
+python3 simulate_gift.py my_animation.gift ../calibration/position-maps/tree.json
+
+# 4. Transfer to Pi
+scp my_animation.gift pi@<pi_ip>:~/christmas-lights/pi/GIFT/gifts/
 ```
 
-## Development Roadmap
+**On Raspberry Pi:**
 
-### Phase 1: Core Infrastructure
-- [x] Basic standalone pattern scripts
-- [ ] 3D position mapping system
-- [ ] GIFT file format specification
-- [ ] GIFT parser and player class
+```bash
+cd ~/christmas-lights/pi/GIFT
+# Play animation (looks in gifts/ directory by default)
+sudo python3 gift_player.py rainbow.gift
 
-### Phase 2: GIFT System
-- [ ] Visualization tool for .GIFT creation
-- [ ] Library of basic .GIFT animations
-- [ ] Position calibration utilities
+# Or with full path
+sudo python3 gift_player.py gifts/rainbow.gift
 
-### Phase 3: Remote Control
-- [ ] Remote control interface
-- [ ] Network communication protocol
-- [ ] Web-based control panel (optional)
+# With options
+sudo python3 gift_player.py rainbow.gift --speed 2.0 --brightness 128
+```
 
-### Phase 4: Advanced Features
-- [ ] Sound-reactive patterns
-- [ ] Multiple simultaneous animations
-- [ ] Animation blending and transitions
-- [ ] Performance optimization
+Note: `sudo` is required for GPIO access on the Raspberry Pi.
+
+## Standard Directories
+
+The project uses standard directories for organization:
+
+- **GIFT animations**: `pi/GIFT/gifts/` - Animation files (.gift)
+- **Position maps**: `remote/calibration/position-maps/` - Calibrated 3D positions
+- **Example position maps**: `pi/GIFT/position_maps/` - Test/example position data
+
+Tools automatically check these directories when given just a filename.
 
 ## GIFT File Format
 
-The `.GIFT` file format is designed to describe light animations in 3D space. Each file contains:
+GIFT uses a simple CSV format for maximum compatibility and ease of generation:
 
-1. **Metadata**: Animation name, duration, frame rate
-2. **Position Data**: Reference to or embedded 3D coordinates of each LED
-3. **Animation Frames**: Timing and color/brightness data for each LED at each keyframe
-4. **Interpolation Rules**: How to transition between keyframes
+```csv
+# GIFT Animation File
+# led_count: 200
+# frame_count: 300
+# framerate: 30.0
+# duration: 10.00s
+# loop: True
+frame_id,R_0,G_0,B_0,R_1,G_1,B_1,R_2,G_2,B_2,...
+0,255,0,0,255,0,0,255,0,0,...
+1,255,10,0,255,10,0,255,10,0,...
+...
+```
 
-Detailed specification to be documented in [docs/](docs/).
+**Key Characteristics:**
+- Frame-based (not keyframe-based) - every frame is explicitly defined
+- Position-independent playback (positions used only during generation)
+- RGB values 0-255 for each LED at each frame
+- Metadata in comment header for player configuration
+
+See [docs/GIFT_FORMAT_SPEC.md](docs/GIFT_FORMAT_SPEC.md) for complete specification.
 
 ## Contributing
 
