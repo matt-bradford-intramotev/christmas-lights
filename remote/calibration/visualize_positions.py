@@ -11,6 +11,38 @@ import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from pathlib import Path
+from typing import Optional
+
+
+def resolve_position_map_path(filename: str) -> Optional[Path]:
+    """
+    Resolve position map file path, checking standard locations.
+
+    Search order:
+    1. Exact path as provided
+    2. In position-maps/ subdirectory (if just a filename)
+
+    Args:
+        filename: Position map filename or path
+
+    Returns:
+        Resolved Path object, or None if not found
+    """
+    path = Path(filename)
+
+    # Try exact path
+    if path.exists():
+        return path
+
+    # If it's just a filename (no directory), try standard location
+    if path.parent == Path('.'):
+        # Try position-maps subdirectory
+        script_dir = Path(__file__).parent
+        standard_path = script_dir / 'position-maps' / filename
+        if standard_path.exists():
+            return standard_path
+
+    return None
 
 
 def load_position_map(filepath):
@@ -262,9 +294,20 @@ Examples:
 
     args = parser.parse_args()
 
+    # Resolve position map path
+    position_map_path = resolve_position_map_path(args.position_map)
+    if position_map_path is None:
+        print(f"Error: Position map not found: {args.position_map}")
+        print(f"Searched in:")
+        print(f"  - {Path(args.position_map).absolute()}")
+        if Path(args.position_map).parent == Path('.'):
+            script_dir = Path(__file__).parent
+            print(f"  - {(script_dir / 'position-maps' / args.position_map).absolute()}")
+        return 1
+
     # Load position map
-    print(f"Loading position map: {args.position_map}")
-    positions, metadata = load_position_map(args.position_map)
+    print(f"Loading position map: {position_map_path}")
+    positions, metadata = load_position_map(str(position_map_path))
     print(f"Loaded {len(positions)} LED positions")
 
     # Analyze

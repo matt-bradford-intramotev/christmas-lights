@@ -651,8 +651,8 @@ Examples:
     parser.add_argument('calibration_dir',
                        help='Directory containing session_angle_*.json files')
     parser.add_argument('--output', type=str,
-                       default='position_map.json',
-                       help='Output position map file (default: position_map.json)')
+                       default='position-maps/position_map.json',
+                       help='Output position map file (default: position-maps/position_map.json)')
     parser.add_argument('--name', type=str,
                        default='Calibrated Tree',
                        help='Name for position map (default: "Calibrated Tree")')
