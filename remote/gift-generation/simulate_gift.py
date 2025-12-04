@@ -20,6 +20,78 @@ from matplotlib.widgets import Button, Slider
 from mpl_toolkits.mplot3d import Axes3D
 
 
+def resolve_gift_path(filename: str) -> Optional[Path]:
+    """
+    Resolve GIFT file path, checking standard locations.
+
+    Search order:
+    1. Exact path as provided
+    2. In pi/GIFT/gifts/ directory (if just a filename)
+
+    Args:
+        filename: GIFT filename or path
+
+    Returns:
+        Resolved Path object, or None if not found
+    """
+    path = Path(filename)
+
+    # Try exact path
+    if path.exists():
+        return path
+
+    # If it's just a filename (no directory), try standard location
+    if path.parent == Path('.'):
+        # Navigate to pi/GIFT/gifts from wherever we are
+        # Assume project structure: remote/gift-generation or pi/GIFT
+        script_dir = Path(__file__).parent
+        project_root = script_dir.parent.parent  # Go up to project root
+        standard_path = project_root / 'pi' / 'GIFT' / 'gifts' / filename
+        if standard_path.exists():
+            return standard_path
+
+    return None
+
+
+def resolve_position_map_path(filename: str) -> Optional[Path]:
+    """
+    Resolve position map file path, checking standard locations.
+
+    Search order:
+    1. Exact path as provided
+    2. In remote/calibration/position-maps/ directory (if just a filename)
+    3. In pi/GIFT/position_maps/ directory (if just a filename)
+
+    Args:
+        filename: Position map filename or path
+
+    Returns:
+        Resolved Path object, or None if not found
+    """
+    path = Path(filename)
+
+    # Try exact path
+    if path.exists():
+        return path
+
+    # If it's just a filename (no directory), try standard locations
+    if path.parent == Path('.'):
+        script_dir = Path(__file__).parent
+        project_root = script_dir.parent.parent  # Go up to project root
+
+        # Try remote/calibration/position-maps first
+        standard_path1 = project_root / 'remote' / 'calibration' / 'position-maps' / filename
+        if standard_path1.exists():
+            return standard_path1
+
+        # Try pi/GIFT/position_maps as fallback
+        standard_path2 = project_root / 'pi' / 'GIFT' / 'position_maps' / filename
+        if standard_path2.exists():
+            return standard_path2
+
+    return None
+
+
 class GIFTSimulator:
     """Simulate and visualize GIFT animations."""
 
@@ -455,8 +527,32 @@ Interactive Controls:
 
     args = parser.parse_args()
 
+    # Resolve file paths
+    gift_path = resolve_gift_path(args.gift_file)
+    if gift_path is None:
+        print(f"Error: GIFT file not found: {args.gift_file}")
+        print(f"Searched in:")
+        print(f"  - {Path(args.gift_file).absolute()}")
+        if Path(args.gift_file).parent == Path('.'):
+            script_dir = Path(__file__).parent
+            project_root = script_dir.parent.parent
+            print(f"  - {(project_root / 'pi' / 'GIFT' / 'gifts' / args.gift_file).absolute()}")
+        return 1
+
+    position_map_path = resolve_position_map_path(args.position_map)
+    if position_map_path is None:
+        print(f"Error: Position map not found: {args.position_map}")
+        print(f"Searched in:")
+        print(f"  - {Path(args.position_map).absolute()}")
+        if Path(args.position_map).parent == Path('.'):
+            script_dir = Path(__file__).parent
+            project_root = script_dir.parent.parent
+            print(f"  - {(project_root / 'remote' / 'calibration' / 'position-maps' / args.position_map).absolute()}")
+            print(f"  - {(project_root / 'pi' / 'GIFT' / 'position_maps' / args.position_map).absolute()}")
+        return 1
+
     # Create simulator
-    simulator = GIFTSimulator(args.gift_file, args.position_map)
+    simulator = GIFTSimulator(str(gift_path), str(position_map_path))
 
     if args.export_frames:
         # Export mode
