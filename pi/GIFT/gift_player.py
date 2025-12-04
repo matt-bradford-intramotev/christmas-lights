@@ -22,6 +22,38 @@ except ImportError:
     print("Warning: rpi_ws281x not available. Running in simulation mode.")
 
 
+def resolve_gift_path(filename: str) -> Optional[Path]:
+    """
+    Resolve GIFT file path, checking standard locations.
+
+    Search order:
+    1. Exact path as provided
+    2. In pi/GIFT/gifts/ directory (if just a filename)
+    3. In current directory
+
+    Args:
+        filename: GIFT filename or path
+
+    Returns:
+        Resolved Path object, or None if not found
+    """
+    path = Path(filename)
+
+    # Try exact path
+    if path.exists():
+        return path
+
+    # If it's just a filename (no directory), try standard location
+    if path.parent == Path('.'):
+        # Get script directory and navigate to gifts folder
+        script_dir = Path(__file__).parent
+        standard_path = script_dir / 'gifts' / filename
+        if standard_path.exists():
+            return standard_path
+
+    return None
+
+
 class GIFTPlayer:
     """
     GIFT animation player.
@@ -278,9 +310,15 @@ Note: Requires sudo for GPIO access on Raspberry Pi
 
     args = parser.parse_args()
 
-    # Check if file exists
-    if not Path(args.gift_file).exists():
+    # Resolve GIFT file path
+    gift_path = resolve_gift_path(args.gift_file)
+    if gift_path is None:
         print(f"Error: File not found: {args.gift_file}")
+        print(f"Searched in:")
+        print(f"  - {Path(args.gift_file).absolute()}")
+        if Path(args.gift_file).parent == Path('.'):
+            script_dir = Path(__file__).parent
+            print(f"  - {(script_dir / 'gifts' / args.gift_file).absolute()}")
         return 1
 
     # Warn if not running as root (on real hardware)
@@ -297,7 +335,7 @@ Note: Requires sudo for GPIO access on Raspberry Pi
     )
 
     # Load animation
-    player.load_gift_file(args.gift_file)
+    player.load_gift_file(str(gift_path))
 
     # Override loop setting if requested
     if args.no_loop:
