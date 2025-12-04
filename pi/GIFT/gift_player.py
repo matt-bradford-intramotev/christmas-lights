@@ -271,8 +271,8 @@ Note: Requires sudo for GPIO access on Raspberry Pi
                        help='Disable looping (play once)')
     parser.add_argument('--brightness', type=int, default=255,
                        help='LED brightness 0-255 (default: 255)')
-    parser.add_argument('--led-count', type=int, default=200,
-                       help='Number of LEDs (default: 200)')
+    parser.add_argument('--led-count', type=int, default=350,
+                       help='Number of LEDs (default: 350)')
     parser.add_argument('--led-pin', type=int, default=18,
                        help='GPIO pin (default: 18)')
 
