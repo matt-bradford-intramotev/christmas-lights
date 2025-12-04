@@ -46,6 +46,43 @@ class GIFTCreator:
         self.positions: Optional[List[LEDPosition]] = None
         self.unmapped_leds: set = set()  # Track LEDs without valid positions
 
+    def _resolve_position_map_path(self, filepath: str) -> Optional[Path]:
+        """
+        Resolve position map path, checking standard locations.
+
+        Search order:
+        1. Exact path as provided
+        2. ../calibration/position-maps/ (from gift-generation)
+        3. ../../pi/GIFT/position_maps/ (from gift-generation)
+
+        Args:
+            filepath: Position map filename or path
+
+        Returns:
+            Resolved Path, or None if not found
+        """
+        path = Path(filepath)
+
+        # Try exact path
+        if path.exists():
+            return path
+
+        # If just a filename, try standard locations
+        if path.parent == Path('.'):
+            script_dir = Path(__file__).parent
+
+            # Try ../calibration/position-maps first
+            standard_path1 = script_dir.parent / 'calibration' / 'position-maps' / filepath
+            if standard_path1.exists():
+                return standard_path1
+
+            # Try ../../pi/GIFT/position_maps as fallback
+            standard_path2 = script_dir.parent.parent / 'pi' / 'GIFT' / 'position_maps' / filepath
+            if standard_path2.exists():
+                return standard_path2
+
+        return None
+
     def load_position_map(self, filepath: str):
         """
         Load LED position map and infer LED count.
@@ -53,10 +90,23 @@ class GIFTCreator:
         Detects unmapped LEDs (those at position 0,0,0 or marked as failed in metadata)
         and tracks them so they can be set to black in animations.
 
+        Automatically searches standard directories if just a filename is provided.
+
         Args:
-            filepath: Path to position map JSON file
+            filepath: Path to position map JSON file (or just filename)
         """
-        with open(filepath, 'r') as f:
+        # Resolve path - check standard locations
+        resolved_path = self._resolve_position_map_path(filepath)
+        if resolved_path is None:
+            raise FileNotFoundError(
+                f"Position map not found: {filepath}\n"
+                f"Searched in current directory and standard locations:\n"
+                f"  - {Path(filepath).absolute()}\n"
+                f"  - ../calibration/position-maps/{filepath}\n"
+                f"  - ../../pi/GIFT/position_maps/{filepath}"
+            )
+
+        with open(resolved_path, 'r') as f:
             data = json.load(f)
 
         self.positions = []
@@ -136,11 +186,25 @@ class GIFTCreator:
         """
         Export animation to GIFT file.
 
+        Automatically writes to pi/GIFT/gifts/ directory if just a filename is provided.
+        Specify a full path to override the default location.
+
         Args:
-            filepath: Output file path (.gift extension recommended)
+            filepath: Output file path (.gift extension recommended) or just filename
             loop: Whether animation should loop
         """
         filepath = Path(filepath)
+
+        # If just a filename, write to standard GIFT directory
+        if filepath.parent == Path('.'):
+            script_dir = Path(__file__).parent
+            project_root = script_dir.parent.parent  # Go up to project root
+            gifts_dir = project_root / 'pi' / 'GIFT' / 'gifts'
+
+            # Create directory if it doesn't exist
+            gifts_dir.mkdir(parents=True, exist_ok=True)
+
+            filepath = gifts_dir / filepath
 
         with open(filepath, 'w', newline='') as f:
             # Write metadata header
