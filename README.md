@@ -120,6 +120,12 @@ Note: `sudo` is required for GPIO access on the Raspberry Pi.
 **On Development Machine:**
 
 ```bash
+# 0. OPTIONAL: Install dependencies in a virtualenv via poetry (one-time setup)
+cd remote
+poetry install
+poetry shell
+cd ..
+
 # 1. Calibrate LED positions (one-time setup)
 cd remote/calibration
 python3 triangulation.py ./calibration_data --output position-maps/tree.json
