@@ -1,0 +1,23 @@
+[project]
+name = "christmas-lights"
+version = "0.1.0"
+description = "A comprehensive toolkit for controlling individually addressable LED lights on a Raspberry Pi Zero 2 W, with a focus on 3D spatial light animations for Christmas tree displays"
+authors = [
+    {name = "Matt Bradford",email = "matt.bradford@intramotev.com"}
+]
+readme = "README.md"
+requires-python = ">=3.10,<4.0"
+dependencies = [
+]
+
+[tool.poetry]
+package-mode = false
+
+[tool.poetry.dependencies]
+matplotlib = "^3.10"
+flask = "^3.1"
+numpy = "^2.2"
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
