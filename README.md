@@ -32,10 +32,13 @@ christmas-lights/
 │   │   ├── triangulation.py     # 3D position calculation
 │   │   ├── camera_capture.py    # Image capture and LED detection
 │   │   └── pi_control.py        # HTTP client for Pi control
-│   └── gift-generation/         # GIFT animation creation
-│       ├── gift_creator.py      # Animation builder library
-│       ├── simulate_gift.py     # 3D visualization and preview
-│       └── example_rainbow_bands.py
+│   ├── gift-generation/         # GIFT animation creation
+│   │   ├── gift_creator.py      # Animation builder library
+│   │   ├── simulate_gift.py     # 3D visualization and preview
+│   │   └── example_rainbow_bands.py
+│   └── control/                 # Remote GIFT playback control
+│       ├── pi_gift_control.py   # SSH-based control library
+│       └── gift_remote.py       # CLI tool for remote control
 └── docs/                        # Documentation and specifications
     ├── GIFT_FORMAT_SPEC.md      # GIFT file format specification
     ├── CALIBRATION_SYSTEM.md    # Position mapping system
@@ -75,7 +78,7 @@ A frame-based animation system for creating sophisticated 3D light shows. GIFT s
 - Simple, efficient playback on Pi Zero 2 W
 - Automatic handling of unmapped/failed LEDs
 
-### Remote Control Tools
+### Remote Development Tools
 
 Located in [remote/](remote/), these tools run on a separate machine to create and manage animations:
 
@@ -88,6 +91,12 @@ Located in [remote/](remote/), these tools run on a separate machine to create a
 - GIFT animation creation with position awareness
 - 3D preview and simulation
 - Example animation generators
+
+**Playback Control Tools:**
+- SSH-based remote control of GIFT playback
+- Launch, stop, and query animations on Pi
+- No server required on Pi - uses SSH
+- See [remote/control/README.md](remote/control/README.md)
 
 ## Getting Started
 
@@ -136,7 +145,7 @@ python3 simulate_gift.py my_animation.gift ../calibration/position-maps/tree.jso
 scp my_animation.gift pi@<pi_ip>:~/christmas-lights/pi/GIFT/gifts/
 ```
 
-**On Raspberry Pi:**
+**On Raspberry Pi (Direct Control):**
 
 ```bash
 cd ~/christmas-lights/pi/GIFT
@@ -151,6 +160,23 @@ sudo python3 gift_player.py rainbow.gift --speed 2.0 --brightness 128
 ```
 
 Note: `sudo` is required for GPIO access on the Raspberry Pi.
+
+**Or Control Remotely via SSH (No need to log into Pi):**
+
+```bash
+cd ~/christmas-lights/remote/control
+
+# Launch animation on Pi remotely
+python3 gift_remote.py launch rainbow.gift --host pi.local --brightness 128
+
+# Check status
+python3 gift_remote.py status --host pi.local
+
+# Stop playback
+python3 gift_remote.py stop --host pi.local
+```
+
+See [remote/control/README.md](remote/control/README.md) for full remote control documentation.
 
 ## Standard Directories
 
