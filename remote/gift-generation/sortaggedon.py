@@ -138,6 +138,9 @@ def create_sortaggeon_animation(
     print(f"  python3 gift_player.py {output_path}")
 
 def _bubblesort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+    """
+    The infamous Bubble Sort, everyone's favorite trivial sort algorithm.
+    """
     frames = 0
     # Outer loop
     for i in range(num_bands):
