@@ -33,7 +33,7 @@ def create_sortaggeon_animation(
     output_path: str,
     framerate: float = 30.0,
     num_bands: int = 100,
-    sort_algos: list[str] = ['bubble', 'selection', 'insertion', 'merge', 'stooge', 'quick', 'cocktail', 'radixlsd']
+    sort_algos: list[str] = []
 ):
     """
     Create sort visualization animation.
@@ -52,6 +52,9 @@ def create_sortaggeon_animation(
     print(f"Number bands: {num_bands}")
     print(f"Sort algorithms: {sort_algos}")
     print()
+
+    # Demonstrate all algorithms by default
+    _sort_algos = ['bubble', 'selection', 'insertion', 'merge', 'stooge', 'quick', 'cocktail', 'radixlsd'] if len(sort_algos) == 0 else sort_algos
 
     # Create GIFT creator (LED count will be inferred from position map)
     creator = GIFTCreator(framerate=framerate)
@@ -86,7 +89,7 @@ def create_sortaggeon_animation(
     print()
 
     frames_generated = 0
-    for a in sort_algos:
+    for a in _sort_algos:
         sorted_hues = rando_hues.copy()
         frames = 0
         match a:
@@ -561,6 +564,9 @@ Examples:
 
   # Custom number of color bands to sort
   python3 sortaggedons.py position_map.json --numbands 50
+
+  # Specify a subset of sort algorithms to visualize
+  python3 sortaggedons.py position_map.json --sort_algos quick cocktail
         """
     )
 
@@ -572,6 +578,8 @@ Examples:
                        help='Frames per second (default: 30.0)')
     parser.add_argument('--numbands', type=int, default=100,
                        help='Number color bands to sort (default: 100)')
+    parser.add_argument('--sort_algos', nargs='+', default=[],
+                       help='Space-separated list of sort algorithms (supported: bubble selection insertion merge stooge quick cocktail radixlsd - default: ALL OF THEM!!)')
 
     args = parser.parse_args()
 
@@ -579,7 +587,8 @@ Examples:
         position_map_path=args.position_map,
         output_path=args.output,
         framerate=args.framerate,
-        num_bands=args.numbands
+        num_bands=args.numbands,
+        sort_algos=args.sort_algos
     )
 
 
