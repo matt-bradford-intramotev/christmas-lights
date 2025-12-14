@@ -31,7 +31,7 @@ from gift_creator import GIFTCreator, hsv_to_rgb
 def create_sortaggeon_animation(
     position_map_path: str,
     output_path: str,
-    framerate: float = 30.0,
+    framerate: float = 45.0,
     num_bands: int = 100,
     sort_algos: list[str] = []
 ):
@@ -158,7 +158,12 @@ def create_sortaggeon_animation(
     print("To play this animation, use the GIFT player on your Raspberry Pi:")
     print(f"  python3 gift_player.py {output_path}")
 
-def _bubblesort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+def _bubblesort_frames(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float]
+) -> int:
     """
     The infamous Bubble Sort, everyone's favorite trivial sort algorithm.
     """
@@ -179,7 +184,12 @@ def _bubblesort_frames(creator: GIFTCreator, z_positions: list[float], num_bands
             break
     return frames
 
-def _selectionsort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+def _selectionsort_frames(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float]
+) -> int:
     """
     An iterative implementation of Selection Sort.
     """
@@ -191,6 +201,11 @@ def _selectionsort_frames(creator: GIFTCreator, z_positions: list[float], num_ba
         for j in range(i + 1, len(hues)):
             if hues[j] < hues[min_index]:
                 min_index = j
+
+                # For visualization, add a frame marking this band white
+                _add_frame(creator, z_positions, num_bands, hues, [j])
+                frames += 1
+
         # Swap
         hues[i], hues[min_index] = hues[min_index], hues[i]
         # Add a frame with current sorting state
@@ -199,7 +214,12 @@ def _selectionsort_frames(creator: GIFTCreator, z_positions: list[float], num_ba
 
     return frames
 
-def _insertionsort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+def _insertionsort_frames(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float]
+) -> int:
     """
     An iterative implementation of Insertion Sort.
     """
@@ -222,7 +242,12 @@ def _insertionsort_frames(creator: GIFTCreator, z_positions: list[float], num_ba
 
     return frames
 
-def _mergesort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+def _mergesort_frames(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float]
+) -> int:
     """
     An iterative implementation of Merge Sort.
     """
@@ -238,61 +263,68 @@ def _mergesort_frames(creator: GIFTCreator, z_positions: list[float], num_bands:
             # Ensure the right index does not exceed array bounds
             right_end = min(left_start + 2 * size - 1, n - 1)
             
-            # Merge the two sub-arrays arr[left_start...mid] and arr[mid+1...right_end]
-            _mergesort_merge(hues, left_start, mid, right_end)
+            # Merge the two sub-arrays hues[left_start...mid] and hues[mid+1...right_end]          
+            n1 = mid - left_start + 1
+            n2 = right_end - mid
+            
+            # Create temporary arrays
+            L = [0] * n1
+            R = [0] * n2
+            
+            # Copy data to temp arrays L[] and R[]
+            for i in range(n1):
+                L[i] = hues[left_start + i]
+            for j in range(n2):
+                R[j] = hues[mid + 1 + j]
+                
+            # Merge the temporary arrays back into arr[left...right]
+            i = 0  # Initial index of first sub-array
+            j = 0  # Initial index of second sub-array
+            k = left_start # Initial index of merged sub-array
 
-            # Add a frame with current sorting state
-            _add_frame(creator, z_positions, num_bands, hues)
-            frames += 1
+            while i < n1 and j < n2:
+                if L[i] <= R[j]:
+                    hues[k] = L[i]
+                    i += 1
+                else:
+                    hues[k] = R[j]
+                    j += 1
+                k += 1
+
+                # Add a frame with current sorting state
+                _add_frame(creator, z_positions, num_bands, hues)
+                frames += 1
+
+            # Copy the remaining elements of L[], if any
+            while i < n1:
+                hues[k] = L[i]
+                i += 1
+                k += 1
+
+                # Add a frame with current sorting state
+                _add_frame(creator, z_positions, num_bands, hues)
+                frames += 1
+
+            # Copy the remaining elements of R[], if any
+            while j < n2:
+                hues[k] = R[j]
+                j += 1
+                k += 1
+
+                # Add a frame with current sorting state
+                _add_frame(creator, z_positions, num_bands, hues)
+                frames += 1
 
         # Double the sub-array size for the next pass
         size *= 2
     return frames
 
-def _mergesort_merge(arr, left, mid, right):
-    """
-    Helper function for Merge Sort, merges two sorted sub-arrays into a single sorted sub-array.
-    """
-    n1 = mid - left + 1
-    n2 = right - mid
-    
-    # Create temporary arrays
-    L = [0] * n1
-    R = [0] * n2
-    
-    # Copy data to temp arrays L[] and R[]
-    for i in range(n1):
-        L[i] = arr[left + i]
-    for j in range(n2):
-        R[j] = arr[mid + 1 + j]
-        
-    # Merge the temporary arrays back into arr[left...right]
-    i = 0  # Initial index of first sub-array
-    j = 0  # Initial index of second sub-array
-    k = left # Initial index of merged sub-array
-
-    while i < n1 and j < n2:
-        if L[i] <= R[j]:
-            arr[k] = L[i]
-            i += 1
-        else:
-            arr[k] = R[j]
-            j += 1
-        k += 1
-
-    # Copy the remaining elements of L[], if any
-    while i < n1:
-        arr[k] = L[i]
-        i += 1
-        k += 1
-
-    # Copy the remaining elements of R[], if any
-    while j < n2:
-        arr[k] = R[j]
-        j += 1
-        k += 1
-
-def _stoogesort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+def _stoogesort_frames(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float]
+) -> int:
     """
     Sorts an array by element value using an iterative Stooge sort algorithm.  As you can see below, doing this
     without recursion made Gemini vent quite angrily in the comments.
@@ -360,7 +392,12 @@ def _stoogesort_frames(creator: GIFTCreator, z_positions: list[float], num_bands
 
     return frames
 
-def _quicksort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+def _quicksort_frames(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float]
+) -> int:
     """
     An iterative implementation of Quick Sort using an explicit stack.
     """
@@ -378,8 +415,30 @@ def _quicksort_frames(creator: GIFTCreator, z_positions: list[float], num_bands:
         high = stack.pop()
         low = stack.pop()
 
-        # Get pivot position after partitioning
-        pi = _quicksort_partition(hues, low, high)
+        # Partitioning for iterative quicksort, takes the last element as the pivot,
+        # places the pivot element at its correct position in the sorted array, and places
+        # all smaller elements to the left of the pivot and all greater elements to the 
+        # right.
+        i = (low - 1)  # index of smaller element
+        pivot = hues[high]  # pivot element
+
+        for j in range(low, high):
+            # If current element is smaller than or equal to pivot
+            if hues[j] <= pivot:
+                # increment index of smaller element
+                i = i + 1
+                hues[i], hues[j] = hues[j], hues[i]
+
+                # Add a frame with current sorting state
+                _add_frame(creator, z_positions, num_bands, hues)
+                frames += 1
+
+        hues[i + 1], hues[high] = hues[high], hues[i + 1]
+        pi = i + 1
+
+        # Add a frame with current sorting state
+        _add_frame(creator, z_positions, num_bands, hues)
+        frames += 1
 
         # If there are elements on the left side of the pivot,
         # push that sub-array's indices to the stack
@@ -393,33 +452,14 @@ def _quicksort_frames(creator: GIFTCreator, z_positions: list[float], num_bands:
             stack.append(pi + 1)
             stack.append(high)
 
-        # Add a frame with current sorting state
-        _add_frame(creator, z_positions, num_bands, hues)
-        frames += 1
-
     return frames
 
-def _quicksort_partition(arr, low, high) -> int:
-    """
-    Partition function for iterative quicksort, takes the last element as the pivot,
-    places the pivot element at its correct position in the sorted array, and places
-    all smaller elements to the left of the pivot and all greater elements to the 
-    right.
-    """
-    i = (low - 1)  # index of smaller element
-    pivot = arr[high]  # pivot element
-
-    for j in range(low, high):
-        # If current element is smaller than or equal to pivot
-        if arr[j] <= pivot:
-            # increment index of smaller element
-            i = i + 1
-            arr[i], arr[j] = arr[j], arr[i]
-
-    arr[i + 1], arr[high] = arr[high], arr[i + 1]
-    return i + 1
-
-def _cocktailsort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+def _cocktailsort_frames(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float]
+) -> int:
     """
     Sorts an array using the Cocktail Shaker Sort algorithm.
     """
@@ -470,7 +510,12 @@ def _cocktailsort_frames(creator: GIFTCreator, z_positions: list[float], num_ban
     
     return frames
 
-def _radixlsdsort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+def _radixlsdsort_frames(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float]
+) -> int:
     """
     Sorts an array using the Radix LSD sort algorithm.
     """
@@ -522,7 +567,13 @@ def _radixlsdsort_frames(creator: GIFTCreator, z_positions: list[float], num_ban
     
     return frames
 
-def _add_frame(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]):
+def _add_frame(
+    creator: GIFTCreator,
+    z_positions: list[float],
+    num_bands: int,
+    hues: list[float],
+    highlights: list[int] = []
+):
     """Add a frame to the specified GIFTCreator object using the list of hues specified.
 
     Args:
@@ -530,6 +581,7 @@ def _add_frame(creator: GIFTCreator, z_positions: list[float], num_bands: int, h
         z_positions (list[float]): List of LED Z positions
         num_bands (int): Number of color bands
         hues (list[float]): Current order (top to bottom) of colors
+        highlights (list[int]): Indices in hues to instead mark white for highlight
     """
 
     # Determine color for each LED
@@ -540,8 +592,8 @@ def _add_frame(creator: GIFTCreator, z_positions: list[float], num_bands: int, h
         # Determine which band this LED is in
         band_idx = int(z * num_bands) % num_bands
 
-        # Get color for this band
-        color = hsv_to_rgb(hues[band_idx], 1.0, 1.0)
+        # Get color for this band, or mark white if highlighted
+        color = hsv_to_rgb(0, 0, 1.0) if band_idx in highlights else hsv_to_rgb(hues[band_idx], 1.0, 1.0)
         frame_colors.append(color)
 
     # Add frame to animation
@@ -574,8 +626,8 @@ Examples:
                        help='Position map JSON file')
     parser.add_argument('--output', type=str, default='rainbow_bands.gift',
                        help='Output GIFT file (default: rainbow_bands.gift)')
-    parser.add_argument('--framerate', type=float, default=30.0,
-                       help='Frames per second (default: 30.0)')
+    parser.add_argument('--framerate', type=float, default=45.0,
+                       help='Frames per second (default: 45.0)')
     parser.add_argument('--numbands', type=int, default=100,
                        help='Number color bands to sort (default: 100)')
     parser.add_argument('--sort_algos', nargs='+', default=[],
