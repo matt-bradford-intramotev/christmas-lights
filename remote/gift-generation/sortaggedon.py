@@ -10,8 +10,16 @@ each assigned an HSV hue (i.e. color) within the range 0-360.  Frames are genera
 each step of each algorithm sorting the bands from randomized order to ascending per
 their HSV value.
 
-Algorithms demonstrated: bubble, selection, insertion, merge, stooge, quick
+Inspiration, sadly no sound support on the tree:
+https://www.youtube.com/watch?v=kPRA0W1kECg
+
+Algorithms demonstrated: bubble, selection, insertion, merge, stooge, quick, cocktail, radixlsd
 """
+
+__author__ = "Matt Bradford, Ben West, the bot army"
+__copyright__ = "Copyright (C) 2025 Intramotev"
+__license__ = "All rights reserved"
+__version__ = "0.1"
 
 import argparse
 import numpy as np
@@ -25,7 +33,7 @@ def create_sortaggeon_animation(
     output_path: str,
     framerate: float = 30.0,
     num_bands: int = 100,
-    sort_algos: list[str] = ['bubble', 'selection', 'insertion', 'merge', 'stooge', 'quick']
+    sort_algos: list[str] = ['bubble', 'selection', 'insertion', 'merge', 'stooge', 'quick', 'cocktail', 'radixlsd']
 ):
     """
     Create sort visualization animation.
@@ -111,6 +119,16 @@ def create_sortaggeon_animation(
                 print("Starting quick sort")
                 frames = _quicksort_frames(creator, z_positions, num_bands, sorted_hues)
                 print(f"Quick sort generated {frames} frames")
+
+            case "cocktail":
+                print("Starting cocktail shaker sort")
+                frames = _cocktailsort_frames(creator, z_positions, num_bands, sorted_hues)
+                print(f"Cocktail shaker sort generated {frames} frames")
+
+            case "radixlsd":
+                print("Starting radix LSD sort")
+                frames = _radixlsdsort_frames(creator, z_positions, num_bands, sorted_hues)
+                print(f"Radix LSD sort generated {frames} frames")
 
             case _:
                 print(f"Unknown sort algorithm {a}")
@@ -397,6 +415,109 @@ def _quicksort_partition(arr, low, high) -> int:
 
     arr[i + 1], arr[high] = arr[high], arr[i + 1]
     return i + 1
+
+def _cocktailsort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+    """
+    Sorts an array using the Cocktail Shaker Sort algorithm.
+    """
+    frames = 0
+
+    n = len(hues)
+    swapped = True
+    start = 0
+    end = n - 1
+
+    while swapped:
+        # Reset the swapped flag to False for the next iteration
+        swapped = False
+
+        # --- Forward Pass (left to right) ---
+        # This pass moves the largest unsorted element to its correct position at the end
+        for i in range(start, end):
+            if hues[i] > hues[i + 1]:
+                hues[i], hues[i + 1] = hues[i + 1], hues[i]  # Swap elements
+                swapped = True
+
+                # Add a frame with current sorting state
+                _add_frame(creator, z_positions, num_bands, hues)
+                frames += 1
+
+        # If no elements were swapped in the forward pass, the array is sorted
+        if not swapped:
+            break
+
+        # Decrease the end boundary as the largest element is now in place
+        end -= 1
+
+        # --- Backward Pass (right to left) ---
+        # Reset the swapped flag for the backward pass
+        swapped = False
+        # This pass moves the smallest unsorted element to its correct position at the beginning
+        for i in range(end - 1, start - 1, -1):
+            if hues[i] > hues[i + 1]:
+                hues[i], hues[i + 1] = hues[i + 1], hues[i]  # Swap elements
+                swapped = True
+
+                # Add a frame with current sorting state
+                _add_frame(creator, z_positions, num_bands, hues)
+                frames += 1
+
+        # Increase the start boundary as the smallest element is now in place
+        start += 1
+    
+    return frames
+
+def _radixlsdsort_frames(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]) -> int:
+    """
+    Sorts an array using the Radix LSD sort algorithm.
+    """
+    frames = 0
+    n = len(hues)
+
+    # Find the maximum number to know the number of digits
+    max_val = max(hues)
+
+    # Do counting sort for every digit. Note that instead of 
+    # passing the digit number, exp is passed. exp is 10^i 
+    # where i is the current digit number (1, 10, 100, ...).
+    exp = 1
+    while max_val // exp > 0:
+
+        output = [0] * n
+        count = [0] * 10  # Base 10 for decimal numbers
+
+        # Store count of occurrences in count[]
+        for i in range(n):
+            index = hues[i] // exp
+            digit = int(index % 10)
+            count[digit] += 1
+
+        # Change count[i] so that count[i] now contains actual
+        # position of this digit in output[]
+        for i in range(1, 10):
+            count[i] += count[i - 1]
+
+        # Build the output array
+        i = n - 1
+        while i >= 0:
+            index = hues[i] // exp
+            digit = int(index % 10)
+            output[count[digit] - 1] = hues[i]
+            count[digit] -= 1
+            i -= 1
+
+        # Copy the output array to arr[], so that arr now
+        # contains sorted numbers according to current digit
+        for i in range(n):
+            hues[i] = output[i]
+
+            # Add a frame with current sorting state
+            _add_frame(creator, z_positions, num_bands, hues)
+            frames += 1
+
+        exp *= 10
+    
+    return frames
 
 def _add_frame(creator: GIFTCreator, z_positions: list[float], num_bands: int, hues: list[float]):
     """Add a frame to the specified GIFTCreator object using the list of hues specified.
