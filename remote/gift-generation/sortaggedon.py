@@ -178,7 +178,7 @@ def _bubblesort_frames(
                 hues[j], hues[j+1] = hues[j+1], hues[j]
                 swapped = True
                 # Add a frame with current sorting state
-                _add_frame(creator, z_positions, num_bands, hues)
+                _add_frame(creator, z_positions, num_bands, hues, [j])
                 frames += 1
         if not swapped:
             break
@@ -234,7 +234,7 @@ def _insertionsort_frames(
             hues[j+1] = hues[j]
 
             # Add a frame with current sorting state, highlighting key band
-            _add_frame(creator, z_positions, num_bands, hues, [i])
+            _add_frame(creator, z_positions, num_bands, hues, [j])
             frames += 1
             j -= 1
 
@@ -289,31 +289,34 @@ def _mergesort_frames(
                 else:
                     hues[k] = R[j]
                     j += 1
-                k += 1
 
                 # Add a frame with current sorting state
-                _add_frame(creator, z_positions, num_bands, hues)
+                _add_frame(creator, z_positions, num_bands, hues, [k])
                 frames += 1
+
+                k += 1
 
             # Copy the remaining elements of L[], if any
             while i < n1:
                 hues[k] = L[i]
-                i += 1
-                k += 1
 
                 # Add a frame with current sorting state
-                _add_frame(creator, z_positions, num_bands, hues)
+                _add_frame(creator, z_positions, num_bands, hues, [k])
                 frames += 1
+
+                i += 1
+                k += 1
 
             # Copy the remaining elements of R[], if any
             while j < n2:
                 hues[k] = R[j]
-                j += 1
-                k += 1
 
                 # Add a frame with current sorting state
-                _add_frame(creator, z_positions, num_bands, hues)
+                _add_frame(creator, z_positions, num_bands, hues, [k])
                 frames += 1
+
+                j += 1
+                k += 1
 
         # Double the sub-array size for the next pass
         size *= 2
@@ -347,7 +350,7 @@ def _stoogesort_frames(
             hues[low], hues[high] = hues[high], hues[low]
 
             # Add a frame with current sorting state
-            _add_frame(creator, z_positions, num_bands, hues)
+            _add_frame(creator, z_positions, num_bands, hues, [high, low])
             frames += 1
 
         # If there are 3 or more elements, we need to sort the two overlapping 2/3 segments
@@ -430,7 +433,7 @@ def _quicksort_frames(
                 hues[i], hues[j] = hues[j], hues[i]
 
                 # Add a frame with current sorting state
-                _add_frame(creator, z_positions, num_bands, hues)
+                _add_frame(creator, z_positions, num_bands, hues, [i, j])
                 frames += 1
 
         hues[i + 1], hues[high] = hues[high], hues[i + 1]
@@ -482,7 +485,7 @@ def _cocktailsort_frames(
                 swapped = True
 
                 # Add a frame with current sorting state
-                _add_frame(creator, z_positions, num_bands, hues)
+                _add_frame(creator, z_positions, num_bands, hues, [i])
                 frames += 1
 
         # If no elements were swapped in the forward pass, the array is sorted
@@ -502,7 +505,7 @@ def _cocktailsort_frames(
                 swapped = True
 
                 # Add a frame with current sorting state
-                _add_frame(creator, z_positions, num_bands, hues)
+                _add_frame(creator, z_positions, num_bands, hues, [i])
                 frames += 1
 
         # Increase the start boundary as the smallest element is now in place
@@ -560,7 +563,7 @@ def _radixlsdsort_frames(
             hues[i] = output[i]
 
             # Add a frame with current sorting state
-            _add_frame(creator, z_positions, num_bands, hues)
+            _add_frame(creator, z_positions, num_bands, hues, [i])
             frames += 1
 
         exp *= 10
