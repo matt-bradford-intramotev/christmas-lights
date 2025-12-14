@@ -233,8 +233,8 @@ def _insertionsort_frames(
         while j >= 0 and key < hues[j]:
             hues[j+1] = hues[j]
 
-            # Add a frame with current sorting state
-            _add_frame(creator, z_positions, num_bands, hues)
+            # Add a frame with current sorting state, highlighting key band
+            _add_frame(creator, z_positions, num_bands, hues, [i])
             frames += 1
             j -= 1
 
