@@ -13,7 +13,7 @@ their HSV value.
 Inspiration, sadly no sound support on the tree:
 https://www.youtube.com/watch?v=kPRA0W1kECg
 
-Algorithms demonstrated: bubble, selection, insertion, merge, stooge, quick, cocktail, radixlsd
+Algorithms demonstrated: bubble, selection, insertion, merge, gnome, quick, cocktail, radixlsd
 """
 
 __author__ = "Matt Bradford, Ben West, the bot army"
@@ -54,7 +54,7 @@ def create_sortaggeon_animation(
     print()
 
     # Demonstrate all algorithms by default
-    _sort_algos = ['bubble', 'selection', 'insertion', 'merge', 'stooge', 'quick', 'cocktail', 'radixlsd'] if len(sort_algos) == 0 else sort_algos
+    _sort_algos = ['bubble', 'selection', 'insertion', 'merge', 'gnome', 'quick', 'cocktail', 'radixlsd'] if len(sort_algos) == 0 else sort_algos
 
     # Create GIFT creator (LED count will be inferred from position map)
     creator = GIFTCreator(framerate=framerate)
@@ -113,10 +113,10 @@ def create_sortaggeon_animation(
                 frames = _mergesort_frames(creator, z_positions, num_bands, sorted_hues)
                 print(f"Merge sort generated {frames} frames")
 
-            case "stooge":
-                print("Starting stooge sort")
-                frames = _stoogesort_frames(creator, z_positions, num_bands, sorted_hues)
-                print(f"Stooge sort generated {frames} frames")
+            case "gnome":
+                print("Starting gnome sort")
+                frames = _gnomesort_frames(creator, z_positions, num_bands, sorted_hues)
+                print(f"Gnome sort generated {frames} frames")
 
             case "quick":
                 print("Starting quick sort")
@@ -322,77 +322,33 @@ def _mergesort_frames(
         size *= 2
     return frames
 
-def _stoogesort_frames(
+def _gnomesort_frames(
     creator: GIFTCreator,
     z_positions: list[float],
     num_bands: int,
     hues: list[float]
 ) -> int:
     """
-    Sorts an array by element value using an iterative Stooge sort algorithm.  As you can see below, doing this
-    without recursion made Gemini vent quite angrily in the comments.
+    Sorts an array by element value using the Gnome Sort algorithm.
     """
     frames = 0
 
-    # The stack stores tuples of (low, high) indices representing the sub-arrays to sort
-    stack = [(0, len(hues) - 1)]
-
-    while stack:
-        # Pop the current sub-array range from the stack
-        low, high = stack.pop()
-
-        # If the sub-array has less than 2 elements, it's already sorted
-        if low >= high:
-            continue
-
-        # If the first element is greater than the last, swap them
-        if hues[low] > hues[high]:
-            hues[low], hues[high] = hues[high], hues[low]
+    n = len(hues)
+    index = 0
+    while index < n:
+        if index == 0:
+            index += 1
+        elif hues[index] >= hues[index - 1]:
+            index += 1
+        else:
+            # Swap elements and move backward
+            hues[index], hues[index - 1] = hues[index - 1], hues[index]
 
             # Add a frame with current sorting state
-            _add_frame(creator, z_positions, num_bands, hues, [high, low])
+            _add_frame(creator, z_positions, num_bands, hues, [index])
             frames += 1
 
-        # If there are 3 or more elements, we need to sort the two overlapping 2/3 segments
-        if high - low + 1 > 2:
-            # Calculate the size of the 1/3 segment (using math.ceil for the required behavior)
-            # Python's integer division // usually works as floor, so we use math.ceil explicitly or adjust the formula
-            # For the original algorithm's behavior, int((high - low + 1) / 3) is common
-            t = (high - low + 1) // 3
-            
-            # The order of pushing to the stack is crucial to emulate the recursive call order (LIFO)
-            # The last recursive call is "stooge sort the first 2/3 of the list again"
-            # The second recursive call is "stooge sort the last 2/3 of the list"
-            # The first recursive call is "stooge sort the initial 2/3 of the list"
-            
-            # 3. Push the first 2/3 segment again (will be processed first in the next iteration)
-            stack.append((low, high - t))
-            # 2. Push the last 2/3 segment
-            stack.append((low + t, high))
-            # 1. Push the first 2/3 segment (will be processed last in the next iteration, i.e., first after these pushes)
-            # This push order is incorrect for LIFO to match recursion.
-            # The calls happen as: 1st 2/3, then last 2/3, then 1st 2/3 again.
-            # We want the 'again' part to execute after the 'last 2/3' part.
-            
-            # Correct push order for a stack (last in, first out):
-            # We want the order of execution to be: (low, high - t), then (low + t, high), then (low, high - t) again.
-            # So we push the last one first, then the second one, then the first one (which will be processed immediately).
-            stack.append((low, high - t)) # Executes first
-            stack.append((low + t, high)) # Executes second
-            stack.append((low, high - t)) # Executes third/last
-            
-            # Note: This logic is still flawed because the 'again' call must happen *after* the previous two have finished
-            # their entire sub-processes, which a simple LIFO stack doesn't handle automatically. This requires a more complex state management in the stack.
-
-    # A simpler approach using a stack with state is required.
-    # A true iterative implementation using a single list as a stack with just indices is non-trivial for Stooge sort due to
-    # the re-sorting step that depends on the completion of the prior two steps.
-    # The common recursive structure (see snippets) is the standard way.
-    
-    # Given the difficulty of a *simple* iterative implementation that maintains the exact Stooge sort logic,
-    # the recommended approach is the clear and standard recursive function.
-    # pass
-
+            index -= 1
     return frames
 
 def _quicksort_frames(
@@ -589,11 +545,19 @@ def _add_frame(
 
     # Determine color for each LED
     frame_colors = []
+
+    z_min = z_positions.min()
+    z_max = z_positions.max()
+    z_range = z_max - z_min
+
     for led_idx in range(creator.led_count):
         z = z_positions[led_idx]
 
+        # Normalize Z position to [0, 1] within the range
+        z_norm = (z - z_min) / z_range
+
         # Determine which band this LED is in
-        band_idx = int(z * num_bands) % num_bands
+        band_idx = int(z_norm * num_bands) % num_bands
 
         # Get color for this band, or mark white if highlighted
         color = hsv_to_rgb(0, 0, 1.0) if band_idx in highlights else hsv_to_rgb(hues[band_idx], 1.0, 1.0)
@@ -634,7 +598,7 @@ Examples:
     parser.add_argument('--numbands', type=int, default=100,
                        help='Number color bands to sort (default: 100)')
     parser.add_argument('--sort_algos', nargs='+', default=[],
-                       help='Space-separated list of sort algorithms (supported: bubble selection insertion merge stooge quick cocktail radixlsd - default: ALL OF THEM!!)')
+                       help='Space-separated list of sort algorithms (supported: bubble selection insertion merge gnome quick cocktail radixlsd - default: ALL OF THEM!!)')
 
     args = parser.parse_args()
 
