@@ -8,7 +8,7 @@ LIGHTNING_CHANCE = 0.4          # Chance of a flash per frame
 
 # Physics
 FALL_SPEED = 0.03               # Speed of falling drops
-SPAWN_RATE = 0.10               # Drops per frame
+SPAWN_RATE = 0.05               # Drops per frame
 DETECTION_RADIUS = 0.07         # Thickness of the drop
 DROP_LENGTH = 0.15              # Length of the trail
 
@@ -20,7 +20,6 @@ CEILING_Z = 0.45
 RAIN_COLOR = (0, 150, 255)  
 PUDDLE_COLOR = (0, 30, 200) 
 GLOW_INTENSITY = 0.05       
-# -----------------------------
 
 from gift_creator import GIFTCreator
 
